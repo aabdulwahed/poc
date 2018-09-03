@@ -2,80 +2,93 @@ pragma solidity ^0.4.24;
 
 contract Stream {
 
-    address public payer;
-    address public payee;
+    struct Timeframe {
+        uint256 start;
+        uint256 end;
+    }
 
-    uint256 public startBlock;
-    uint256 public closeBlock;
+    address public sender;
+    address public recipient;
+
+    // strong assumptions on block intervals
+    Timeframe public timeframe;
+
+    // implied time unit is 1 block
     uint256 public rate;
+    uint256 public funds;
 
-    event StreamStarted(address payer, address payee, uint256 rate);
-    event StreamClosed(address payer, address payee, uint256 funds);
+    event StreamStarted(address sender, address recipient, uint256 rate);
+    event StreamClosed(address sender, address recipient, uint256 senderFunds, uint256 recipientFunds);
 
-    constructor() public {
-        payer = msg.sender;
+    constructor(address _recipient, uint256 _rate, uint256 duration) public payable {
+        sender = msg.sender;
+        recipient = _recipient;
+        rate = _rate;
+
+        // this acts like a pseudo-escrow account, rate needs to be in wei
+        funds = duration * rate;
+        require(funds == msg.value);
+
+        // delays could occur here when the network is bloated
+        timeframe.start = block.number;
+        timeframe.end = timeframe.start + duration;
+
+        emit StreamStarted(sender, recipient, rate);
     }
 
     /**
      * Modifiers
      */
-    modifier onlyPayer() {
-        require(msg.sender == payer);
+    modifier onlySender() {
+        require(msg.sender == sender);
+        _;
+    }
+
+    modifier onlyRecipient() {
+        require(msg.sender == recipient);
         _;
     }
 
     modifier onlyInvolvedParties() {
-        require(msg.sender == payer || msg.sender == payee);
+        require(msg.sender == sender || msg.sender == recipient);
         _;
     }
 
     modifier isStreaming() {
-        uint256 currentBlock = block.number;
-        require(currentBlock >= startBlock && currentBlock <= closeBlock);
+        require(block.number >= timeframe.start && block.number <= timeframe.end);
         _;
     }
 
     modifier isNotStreaming() {
-        uint256 currentBlock = block.number;
-        require((startBlock == 0 && closeBlock == 0) || (currentBlock < startBlock && currentBlock > closeBlock));
+        // stream is either deactivated or ongoing
+        require((timeframe.start == 0 && timeframe.end == 0) || (block.number < timeframe.start && block.number > timeframe.end));
         _;
     }
 
     /**
      * View
      */
-    function getCurrentBilling() isStreaming public view returns (uint256) {
-        uint256 currentBlock = block.number;
-        require(currentBlock >= startBlock);
-        return (closeBlock - startBlock) * rate;
+    function currentBilling() isStreaming public view returns (uint256) {
+        require(block.number >= timeframe.start);
+        return (block.number - timeframe.start) * rate;
     }
 
     /**
      * State
      */
-    function start(address _payee, uint256 _closeBlock, uint256 _rate) onlyPayer public payable {
-        payee = _payee;
-        startBlock = block.number;
-        closeBlock = _closeBlock;
-        rate = _rate;
-        require((closeBlock - startBlock) * rate == msg.value);
-        emit StreamStarted(payer, payee, rate);
-    }
-
-    function close() onlyPayer isStreaming public {
-        uint256 currentBlock = block.number;
-
-        uint256 funds = (currentBlock - startBlock) * rate;
-        payee.transfer(funds);
-        startBlock = closeBlock = 0;
-        emit StreamClosed(payer, payee, funds);
+    function close() onlySender isStreaming public {
+        uint256 senderFunds = (block.number - timeframe.start) * rate;
+        sender.transfer(senderFunds);
+        timeframe.start = timeframe.end = 0;
+        emit StreamClosed(sender, recipient, senderFunds, funds - senderFunds);
     }
 
     /**
-     * Destroy
-     * This should require signs from both parties
+     * Recipients cannot currently close the stream while it is active,
+     * but this may be amended in the future.
      */
-    function kill() public {
-        selfdestruct(payer);
+    function redeem() onlyRecipient isNotStreaming public {
+        emit StreamClosed(sender, recipient, 0, funds);
+        selfdestruct(recipient);
     }
 }
