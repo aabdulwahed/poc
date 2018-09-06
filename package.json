@@ -1,0 +1,33 @@
+{
+  "name": "chronos-poc",
+  "version": "0.1.0",
+  "description": "Proof of concept implementation",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "dotenv": "^6.0.0",
+    "truffle-hdwallet-provider": "0.0.6"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChronosProtocol/poc.git"
+  },
+  "keywords": [
+    "chronos-protocol",
+    "ethereum",
+    "ethereum-blockchain",
+    "stablecoin"
+  ],
+  "author": "Paul Berg (https://paulrberg.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ChronosProtocol/poc/issues"
+  },
+  "homepage": "https://github.com/ChronosProtocol/poc#readme"
+}
