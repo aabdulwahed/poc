@@ -28,7 +28,6 @@ contract Stream {
         sender = msg.sender;
         recipient = _recipient;
 
-        // default is 1 block
         rate.price = _price;
         rate.interval = _interval;
 
@@ -68,7 +67,7 @@ contract Stream {
 
     modifier isNotStreaming() {
         // stream is either deactivated or ongoing
-        require((timeframe.start == 0 && timeframe.end == 0) || (block.number < timeframe.start && block.number > timeframe.end));
+        require((timeframe.start == 0 && timeframe.end == 0) || (block.number > timeframe.end));
         _;
     }
 
