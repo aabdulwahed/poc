@@ -2,6 +2,16 @@ pragma solidity ^0.4.24;
 
 contract Stream {
 
+    /**
+     * Events
+     */
+    event StreamStarted(address sender, address recipient, uint256 price, uint256 interval);
+    event StreamClosed(address sender, address recipient, uint256 senderFunds, uint256 recipientFunds);
+
+    /**
+     * Structs
+     */
+
     struct Timeframe {
         uint256 start;
         uint256 end;
@@ -12,6 +22,10 @@ contract Stream {
         uint256 interval;
     }
 
+    /**
+     * Storage
+     */
+
     address public sender;
     address public recipient;
 
@@ -19,10 +33,6 @@ contract Stream {
     Timeframe public timeframe;
     Rate public rate;
     uint256 public funds;
-
-    // events
-    event StreamStarted(address sender, address recipient, uint256 price, uint256 interval);
-    event StreamClosed(address sender, address recipient, uint256 senderFunds, uint256 recipientFunds);
 
     constructor(address _recipient, uint256 _price, uint256 _interval, uint256 duration) public payable {
         sender = msg.sender;
@@ -80,7 +90,7 @@ contract Stream {
     }
 
     /**
-     * State
+     * State Mutations
      */
     function close() onlySender isStreaming public {
         uint256 senderFunds = ((block.number - timeframe.start) / rate.interval) * rate.price;
@@ -89,10 +99,8 @@ contract Stream {
         emit StreamClosed(sender, recipient, senderFunds, funds - senderFunds);
     }
 
-    /**
-     * Recipients cannot currently close the stream while it is active,
-     * but this may be amended in the future.
-     */
+    // Recipients cannot currently close the stream while it is active,
+    // but this may be amended in the future.
     function redeem() onlyRecipient isNotStreaming public {
         emit StreamClosed(sender, recipient, 0, funds);
         selfdestruct(recipient);
